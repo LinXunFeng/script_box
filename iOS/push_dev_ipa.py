@@ -10,8 +10,18 @@ import time
 from configparser import ConfigParser
 from enum import Enum
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
 from utils import file_util as FileUtil
 from utils import upload_pgyer as PgyerUtil
+from utils import upload_fir as FirUtil
+
+
+class UploadToPlatform(Enum):
+    """上传至目的平台类型"""
+    PGYER = "pgyer"
+    FIR = "fir"
 
 
 class AppackSetKey(Enum):
@@ -19,6 +29,8 @@ class AppackSetKey(Enum):
     PGYER_API_KEY = "pgyer_api_key"
     PGYER_USER_KEY = "pgyer_user_key"
     PGYER_PASSWORD_KEY = "pgyer_api_password"
+    FIR_TYPE_KEY = "fir_type"
+    FIR_API_TOKEN_KEY = "fir_api_token"
 
 
 def get_build_dir_path(config_ini_path):
@@ -37,10 +49,15 @@ def get_build_config_ini_path(project_path):
     return os.path.join(project_path, 'script', 'build_time_conf.ini')
 
 
+def get_config_dict(project_path):
+    """获取appack_set.json文件路径"""
+    config_set_json = os.path.join(project_path, 'fastlane', 'appack_set.json')
+    return json.loads(FileUtil.read_file(config_set_json))
+
+
 def get_pgyer_config(project_path):
     """获取蒲公英的相关配置"""
-    config_set_json = os.path.join(project_path, 'fastlane', 'appack_set.json')
-    json_data = json.loads(FileUtil.read_file(config_set_json))
+    json_data = get_config_dict(project_path)
     # print(json_data)
     pgyer_api_key = json_data[AppackSetKey.PGYER_API_KEY.value]
     pgyer_user_key = json_data[AppackSetKey.PGYER_USER_KEY.value]
@@ -48,12 +65,20 @@ def get_pgyer_config(project_path):
     return pgyer_api_key, pgyer_user_key, pgyer_password
 
 
-def handle(project_path, target_name):
+def get_fir_config(project_path):
+    """获取fir的相关配置"""
+    json_data = get_config_dict(project_path)
+    fir_type = json_data[AppackSetKey.FIR_TYPE_KEY.value]
+    fir_api_token = json_data[AppackSetKey.FIR_API_TOKEN_KEY.value]
+    return fir_type, fir_api_token
+
+
+def handle(project_path, target_name, upload_to_platform):
     app_name = target_name + '.app'
 
     config_ini_path = get_build_config_ini_path(project_path)
     build_dir_path = get_build_dir_path(config_ini_path)
-    print('build_dir_path -- ', build_dir_path)
+    # print('build_dir_path -- ', build_dir_path)
     app_path = os.path.join(build_dir_path, 'Build/Products/Debug-iphoneos', app_name)
     # print(app_path)
     # cur_path = os.path.abspath('.')
@@ -66,29 +91,36 @@ def handle(project_path, target_name):
         shutil.rmtree(temp_path)  # 移除Payload
         time.sleep(1)  # 等删除完
     os.makedirs(payload_path)  # 创建Payload
-    new_path = shutil.copytree(app_path, payload_app_path)
-    # print(new_path)
+    new_app_path = shutil.copytree(app_path, payload_app_path)
+    # print(new_app_path)
     ipa_path = shutil.make_archive(payload_path, 'zip', temp_path)
     ipa_path = shutil.move(ipa_path, os.path.join(temp_path, target_name + '.ipa'))
-    print(ipa_path)
+    # print(ipa_path)
 
-    # 上传至蒲公英
-    def payer_upload_callback():
+    # 上传完成回调
+    def upload_complete_callback():
         shutil.rmtree(temp_path)  # 删除temp目录
 
-    pgyer_api_key, pgyer_user_key, pgyer_password = get_pgyer_config(project_path)
-    PgyerUtil.upload_to_pgyer(ipa_path, pgyer_api_key, pgyer_user_key, password=pgyer_password, callbcak=payer_upload_callback)
+    if upload_to_platform == UploadToPlatform.PGYER.value:  # 上传至蒲公英
+        pgyer_api_key, pgyer_user_key, pgyer_password = get_pgyer_config(project_path)
+        PgyerUtil.upload_to_pgyer(ipa_path, pgyer_api_key, pgyer_user_key, password=pgyer_password,
+                                  callbcak=upload_complete_callback)
+    elif upload_to_platform == UploadToPlatform.FIR.value:  # 上传至fir
+        fir_type, fir_api_token = get_fir_config(project_path)
+        FirUtil.upload_to_fir(app_path=new_app_path, ipa_path=ipa_path, api_token=fir_api_token, type=fir_type,
+                              callbcak=upload_complete_callback)
 
 
 if __name__ == "__main__":
     argv = sys.argv[1:]
     project_path = ""  # 项目路径
     target_name = ""  # target名称
+    upload_to_platform = UploadToPlatform.PGYER.value  # 上传的平台
 
     try:
-        opts, args = getopt.getopt(argv, "p:t:", ["path=", "target_name="])
+        opts, args = getopt.getopt(argv, "p:t:f:", ["path=", "target_name=", "platform="])
     except getopt.GetoptError:
-        print('push_dev_ipa.py -p "项目路径" -t "target名"')
+        print('push_dev_ipa.py -p "项目路径" -t "target名" --platform="pgyer或fir"')
         sys.exit(2)
 
     print(opts)
@@ -100,6 +132,8 @@ if __name__ == "__main__":
                 sys.exit('请输入项目的地址')
         if opt in ["-t", "--target_name"]:
             target_name = arg
+        if opt in ["-f", "--platform"]:
+            upload_to_platform = arg
 
     # print(project_path)
-    handle(project_path, target_name)
+    handle(project_path, target_name, upload_to_platform)

@@ -21,11 +21,11 @@ def upload_to_pgyer(path, api_key, user_key, install_type=2, password='', update
         'password': password,
         'updateDescription': update_description,
     }
-    print("上传中....")
+    print("上传至蒲公英中....")
     r = requests.post('https://www.pgyer.com/apiv2/app/upload', data=payload, files=files, headers=headers)
     if r.status_code == requests.codes.ok:
-        # result = r.json()
-        # print(result)
+        result = r.json()
+        print(result)
         print("上传成功")
     else:
         print('HTTPError,Code:'+r.status_code)
