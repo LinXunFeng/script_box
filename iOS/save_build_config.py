@@ -1,7 +1,17 @@
 # -*- coding: UTF-8 -*-
 # -*- author: LinXunFeng -*-
 import os
+import enum
 from configparser import ConfigParser
+
+
+class BuildConfigSection(enum.Enum):
+    PROJECT = 'project'
+
+
+class BuildConfigProjectKey(enum.Enum):
+    BUILD_DIR = 'build_dir_path'
+    CONFIGURATION = 'configuration'
 
 
 def handle_build_config():
@@ -14,7 +24,11 @@ def handle_build_config():
     if build_str_index is not None:
         build_dir_path = build_dir_path[0:build_str_index]
     print(build_dir_path)
-    save_config('build_dir_path', build_dir_path)
+    save_config(BuildConfigProjectKey.BUILD_DIR.value, build_dir_path)
+
+    configuration = os.getenv("CONFIGURATION")  # 编译模式
+    print(configuration)
+    save_config(BuildConfigProjectKey.CONFIGURATION.value, configuration)
 
 
 def save_config(key, value):
@@ -24,7 +38,7 @@ def save_config(key, value):
     :param value: 值
     :return:
     """
-    section_name = 'project'
+    section_name = BuildConfigSection.PROJECT.value
     config_file_name = 'build_time_conf.ini'
     config = ConfigParser()
     config.read(config_file_name)

@@ -9,6 +9,8 @@ import sys
 import time
 from configparser import ConfigParser
 from enum import Enum
+from save_build_config import BuildConfigSection, BuildConfigProjectKey
+from get_build_config import get_config as GetBuildConfig
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
@@ -35,13 +37,16 @@ class AppackSetKey(Enum):
 
 def get_build_dir_path(config_ini_path):
     """获取项目的编译目录路径"""
-    section_name = 'project'
-    config = ConfigParser()
-    config.read(config_ini_path)
-    if not config.has_section(section_name):
-        return ""
-    else:
-        return config.get(section_name, 'build_dir_path')
+    section_name = BuildConfigSection.PROJECT.value
+    key = BuildConfigProjectKey.BUILD_DIR.value
+    return GetBuildConfig(config_ini_path, section_name, key)
+
+
+def get_configuration(config_ini_path):
+    """获取项目的编译模式"""
+    section_name = BuildConfigSection.PROJECT.value
+    key = BuildConfigProjectKey.CONFIGURATION.value
+    return GetBuildConfig(config_ini_path, section_name, key)
 
 
 def get_build_config_ini_path(project_path):
@@ -79,7 +84,7 @@ def handle(project_path, target_name, upload_to_platform):
     config_ini_path = get_build_config_ini_path(project_path)
     build_dir_path = get_build_dir_path(config_ini_path)
     # print('build_dir_path -- ', build_dir_path)
-    app_path = os.path.join(build_dir_path, 'Build/Products/Debug-iphoneos', app_name)
+    app_path = os.path.join(build_dir_path, 'Build/Products/{}-iphoneos'.format(get_configuration(config_ini_path)), app_name)
     # print(app_path)
     # cur_path = os.path.abspath('.')
     script_path = os.path.join(project_path, 'script')
