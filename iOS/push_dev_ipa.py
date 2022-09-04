@@ -83,6 +83,8 @@ def handle(project_path, target_name, upload_to_platform):
 
     config_ini_path = get_build_config_ini_path(project_path)
     build_dir_path = get_build_dir_path(config_ini_path)
+    if build_dir_path is None:
+        raise Exception('获取项目的编译目录路径失败')
     # print('build_dir_path -- ', build_dir_path)
     app_path = os.path.join(build_dir_path, 'Build/Products/{}-iphoneos'.format(get_configuration(config_ini_path)), app_name)
     # print(app_path)
@@ -109,7 +111,7 @@ def handle(project_path, target_name, upload_to_platform):
     if upload_to_platform == UploadToPlatform.PGYER.value:  # 上传至蒲公英
         pgyer_api_key, pgyer_user_key, pgyer_password = get_pgyer_config(project_path)
         PgyerUtil.upload_to_pgyer(ipa_path, pgyer_api_key, pgyer_user_key, password=pgyer_password,
-                                  callbcak=upload_complete_callback)
+                                  callback=upload_complete_callback)
     elif upload_to_platform == UploadToPlatform.FIR.value:  # 上传至fir
         fir_type, fir_api_token = get_fir_config(project_path)
         FirUtil.upload_to_fir(app_path=new_app_path, ipa_path=ipa_path, api_token=fir_api_token, type=fir_type,
