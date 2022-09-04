@@ -28,7 +28,6 @@ class UploadToPlatform(Enum):
 
 class AppackSetKey(Enum):
     """appack_set的键"""
-    PGYER_API_KEY = "pgyer_api_key"
     PGYER_USER_KEY = "pgyer_user_key"
     PGYER_PASSWORD_KEY = "pgyer_api_password"
     FIR_TYPE_KEY = "fir_type"
@@ -64,10 +63,9 @@ def get_pgyer_config(project_path):
     """获取蒲公英的相关配置"""
     json_data = get_config_dict(project_path)
     # print(json_data)
-    pgyer_api_key = json_data[AppackSetKey.PGYER_API_KEY.value]
     pgyer_user_key = json_data[AppackSetKey.PGYER_USER_KEY.value]
     pgyer_password = json_data[AppackSetKey.PGYER_PASSWORD_KEY.value]
-    return pgyer_api_key, pgyer_user_key, pgyer_password
+    return pgyer_user_key, pgyer_password
 
 
 def get_fir_config(project_path):
@@ -109,8 +107,8 @@ def handle(project_path, target_name, upload_to_platform):
         shutil.rmtree(temp_path)  # 删除temp目录
 
     if upload_to_platform == UploadToPlatform.PGYER.value:  # 上传至蒲公英
-        pgyer_api_key, pgyer_user_key, pgyer_password = get_pgyer_config(project_path)
-        PgyerUtil.upload_to_pgyer(ipa_path, pgyer_api_key, pgyer_user_key, password=pgyer_password,
+        pgyer_user_key, pgyer_password = get_pgyer_config(project_path)
+        PgyerUtil.upload_to_pgyer(ipa_path, pgyer_user_key, password=pgyer_password,
                                   callback=upload_complete_callback)
     elif upload_to_platform == UploadToPlatform.FIR.value:  # 上传至fir
         fir_type, fir_api_token = get_fir_config(project_path)

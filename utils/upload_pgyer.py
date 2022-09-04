@@ -30,12 +30,11 @@ def _getCOSToken(api_key, install_type=2, password='', update_description='', ca
         print('蒲公英服务器抽风了~')
 
 
-def upload_to_pgyer(path, api_key, user_key, install_type=2, password='', update_description='', callback=None):
+def upload_to_pgyer(path, api_key, install_type=2, password='', update_description='', callback=None):
     """
     上传到蒲公英
     :param path: 文件路径
     :param api_key: API Key
-    :param user_key: User Key
     :param install_type: 应用安装方式，值为(1,2,3)。1：公开，2：密码安装，3：邀请安装。默认为1公开
     :param password: App安装密码
     :param update_description:
