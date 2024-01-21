@@ -5,6 +5,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import getopt
 from enum import Enum
 import xml.etree.ElementTree as ET
+from utils import file_util as FileTool
+from utils import release_version as ReleaseVersionTool
 
 class ErrorCode(Enum):
     """错误代码"""
@@ -27,7 +29,58 @@ def handle_ios():
     """
     处理iOS项目
     """
-    pass
+    # 1. 读取主版本号
+    # 请将 OCProject 修改为你们自己的工程名
+    xcodeproj_path = os.path.join(project_path, 'OCProject.xcodeproj')
+    version = ReleaseVersionTool.fetch_project_version(
+        xcodeproj_path=xcodeproj_path,
+        target_name='OCProject',
+    )
+    if version == None:
+      print("未找到版本号")
+      sys.exit(ErrorCode.PARSE_ERR.value)
+    main_version, build_number = version
+    # print("main_version -- ", main_version)
+    # print("build_version -- ", build_number)
+    # 2. 执行 release 命令
+    # shorebird release ios-framework-alpha --release-version 7.0.0+1
+    command = ''
+    version_build = str(main_version) + '+' + str(build_number)
+    if mode == Mode.RELEASE:
+      command = 'shorebird release ios-framework-alpha --release-version ' + version_build
+    elif mode == Mode.PATCH:
+      command = 'shorebird patch ios-framework-alpha --release-version ' + version_build
+    else:
+      print("未知模式")
+      sys.exit(ErrorCode.PARAMS_ERR.value)
+    print("command -- ", command)
+    os.chdir(shell_path)
+    print("当前作业路径 -- ", os.getcwd())
+    os.system(command)
+
+    # 3. 创建 Flutter.podspec
+    # 内容与 flutter_module/.ios/Flutter/Flutter.podspec 保持一致，仅修改 s.vendored_frameworks
+    if mode == Mode.RELEASE:
+        # 如果是 release 模式，则还需要创建对应的 Flutter.podspec
+        flutter_module_path = os.path.join(project_path, '../flutter_module')
+        flutter_module_path = os.path.abspath(flutter_module_path) # 转绝对路径
+        ios_framework_path = os.path.join(flutter_module_path, 'build/ios/framework', 'Release')
+        flutter_podspec = """
+Pod::Spec.new do |s|
+s.name             = 'Flutter'
+s.version          = '1.0.0'
+s.summary          = 'A UI toolkit for beautiful and fast apps.'
+s.homepage         = 'https://flutter.dev'
+s.license          = { :type => 'BSD' }
+s.author           = { 'Flutter Dev Team' => 'flutter-dev@googlegroups.com' }
+s.source           = { :git => 'https://github.com/flutter/engine', :tag => s.version.to_s }
+s.ios.deployment_target = '11.0'
+# Framework linking is handled by Flutter tooling, not CocoaPods.
+# Add a placeholder to satisfy `s.dependency 'Flutter'` plugin podspecs.
+s.vendored_frameworks = 'Flutter.xcframework', 'App.xcframework'
+end
+        """
+        FileTool.rewrite_file(os.path.join(ios_framework_path, 'Flutter.podspec'), flutter_podspec)
 
 def handle_android():
     """

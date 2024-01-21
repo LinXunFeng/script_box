@@ -28,7 +28,38 @@ def handle_ios():
     """
     处理iOS项目
     """
-    pass
+    is_binary = flutter_build_mode == Mode.BINARY
+    # 源码集成
+    # install_all_flutter_pods(flutter_application_path)
+
+    # 二进制集成
+    # pod 'Flutter', path: 'xxx/flutter_module/build/ios/framework/Debug'
+    # install_flutter_plugin_pods(flutter_application_path)
+
+    podfile_path = os.path.join(project_path, 'Podfile')
+    flutter_module_path = os.path.join(project_path, '../flutter_module')
+    flutter_module_path = os.path.abspath(flutter_module_path) # 转绝对路径
+    flutter_module_flutter_path = os.path.join(flutter_module_path, '.ios/Flutter')
+    ios_framework_path = os.path.join(flutter_module_path, 'build/ios/framework', 'Release')
+    ios_framework_path = os.path.abspath(ios_framework_path) # 转绝对路径
+    # print('flutter_module_path -- ', flutter_module_path)
+    # print('flutter_module_flutter_path -- ', flutter_module_flutter_path)
+
+    # 1. 篡改 podhelper.rb
+    flutter_module_podhelper_path = os.path.join(flutter_module_flutter_path, 'podhelper.rb')
+    install_flutter_plugin_pods_method = 'def install_flutter_plugin_pods(flutter_application_path)'
+    # 内部的 flutter_install_plugin_pods 方法在 flutter_tools 下，所以需要对应引入
+    install_flutter_plugin_pods_method_new = install_flutter_plugin_pods_method + "\n\t" + "require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)"
+    target_str = install_flutter_plugin_pods_method if is_binary else install_flutter_plugin_pods_method_new
+    final_str = install_flutter_plugin_pods_method_new if is_binary else install_flutter_plugin_pods_method
+    FileTool.replace(flutter_module_podhelper_path, target_str, final_str)
+
+    # 2. 修改 Podfile，将Flutter的源码依赖改为二进制依赖
+    source_deps = 'install_all_flutter_pods(flutter_application_path)'
+    binary_deps = "pod 'Flutter', path: '{}'\n\t\tinstall_flutter_plugin_pods(flutter_application_path)".format(ios_framework_path)
+    target_str = source_deps if is_binary else binary_deps
+    final_str = binary_deps if is_binary else source_deps
+    FileTool.replace(podfile_path, target_str, final_str)
 
 def handle_android():
     """
